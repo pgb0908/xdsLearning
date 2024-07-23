@@ -1,17 +1,6 @@
 plugins {
     id 'java'
-    id 'war'
-    id 'org.springframework.boot' version '3.3.2'
-    id 'io.spring.dependency-management' version '1.1.6'
-}
-
-group = 'com.example'
-version = '0.0.1-SNAPSHOT'
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(22)
-    }
+    id 'com.google.protobuf' version '0.8.13'
 }
 
 repositories {
@@ -19,12 +8,49 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'io.grpc:grpc-netty:1.42.0'
+    implementation 'io.grpc:grpc-protobuf:1.42.0'
+    implementation 'io.grpc:grpc-stub:1.42.0'
+    implementation 'com.google.protobuf:protobuf-java:3.19.1'
 }
 
-tasks.named('test') {
-    useJUnitPlatform()
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.19.1'
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.42.0'
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                java {}
+            }
+            task.plugins {
+                grpc {}
+            }
+        }
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+sourceSets {
+    getByName("main") {
+        java {
+            srcDirs (
+                    "build/generated/source/proto/main/grpc",
+                    'build/generated/source/proto/main/java'
+
+            )
+        }
+    }
+}
+
+tasks.withType(ProcessResources) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
