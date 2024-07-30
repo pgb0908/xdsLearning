@@ -11,19 +11,13 @@ import io.grpc.stub.StreamObserver;
 
 public class AdsClient {
     public static void main(String[] args) {
-        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 15010)
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 9002)
                 .usePlaintext()
                 .build();
 
         AggregatedDiscoveryServiceGrpc.AggregatedDiscoveryServiceStub stub = AggregatedDiscoveryServiceGrpc.newStub(channel);
 
-        DiscoveryRequest request = DiscoveryRequest.newBuilder()
-                .setVersionInfo("")
-                .setNode(Node.newBuilder().setId("test-id").build())
-                .setTypeUrl("type.googleapis.com/envoy.api.v2.Cluster")
-                .build();
-
-        StreamObserver<DiscoveryResponse> responseObserver = new StreamObserver<DiscoveryResponse>() {
+        StreamObserver<DiscoveryRequest> requestObserver = stub.streamAggregatedResources(new StreamObserver<DiscoveryResponse>() {
             @Override
             public void onNext(DiscoveryResponse response) {
                 System.out.println("Received response: " + response);
@@ -38,9 +32,24 @@ public class AdsClient {
             public void onCompleted() {
                 System.out.println("Stream completed");
             }
-        };
+        });
 
-        StreamObserver<DiscoveryRequest> requestObserver = stub.streamAggregatedResources(responseObserver);
+        DiscoveryRequest request = DiscoveryRequest.newBuilder()
+                .setVersionInfo("")
+                .setNode(Node.newBuilder().setId("test-id").build())
+                .setTypeUrl("type.googleapis.com/envoy.api.v2.Cluster")
+                .build();
+
         requestObserver.onNext(request);
+        // Keep the stream open to receive more responses
+        DiscoveryResponse response = DiscoveryResponse.newBuilder().build();
+        try {
+            Thread.sleep(60000); // Keep the application running for 1 minute
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // Close the channel
+        channel.shutdown();
     }
 }
