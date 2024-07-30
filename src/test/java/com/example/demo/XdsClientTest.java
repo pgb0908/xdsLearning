@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
@@ -8,8 +9,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class XdsClientTest {
     private XdsClient xdsClient;
@@ -38,6 +38,7 @@ public class XdsClientTest {
         System.out.println("TEST GET STUB,  stub.getChannel().toString() : " + stub.getChannel().toString());
     }
 /*
+after each에서 shutdown을 해서 문제가 발생하는 것으로 보인다.
     @Test
     public void testShutdown() {
         assertThrows(StatusRuntimeException.class, () -> {
@@ -46,4 +47,14 @@ public class XdsClientTest {
         });
     }
  */
+
+    @Test
+    public void testBuildDiscoveryRequest() {
+        String typeUrl = "type.googleapis.com/envoy.service.discovery.v3.Listener";
+        DiscoveryRequest request = xdsClient.buildDiscoveryRequest(typeUrl);
+
+        assertEquals(typeUrl, request.getTypeUrl(), "The type URL should match the input value.");
+        // 필요한 경우 추가 필드에 대한 검증도 수행할 수 있습니다.
+
+    }
 }

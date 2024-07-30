@@ -2,6 +2,8 @@ package com.example.demo;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.envoyproxy.envoy.service.discovery.v3.AggregatedDiscoveryServiceGrpc;
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 
 import java.util.concurrent.TimeUnit;
 
@@ -29,4 +31,12 @@ public class XdsClient {
     public void shutdown() throws InterruptedException {
         channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
+
+
+    public DiscoveryRequest buildDiscoveryRequest(String typeUrl) {
+        return DiscoveryRequest.newBuilder()
+                .setTypeUrl(typeUrl)
+                .build();
+    }
+
 }
