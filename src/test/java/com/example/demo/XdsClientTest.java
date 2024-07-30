@@ -55,6 +55,14 @@ after each에서 shutdown을 해서 문제가 발생하는 것으로 보인다.
 
         assertEquals(typeUrl, request.getTypeUrl(), "The type URL should match the input value.");
         // 필요한 경우 추가 필드에 대한 검증도 수행할 수 있습니다.
+    }
 
+    @Test
+    public void testBuildDiscoverySend() {
+        String typeUrl = "type.googleapis.com/envoy.service.discovery.v3.Listener";
+        DiscoveryRequest request = xdsClient.buildDiscoveryRequest(typeUrl);
+
+        assertEquals(typeUrl, request.getTypeUrl(), "The type URL should match the input value.");
+        // 필요한 경우 추가 필드에 대한 검증도 수행할 수 있습니다.
     }
 }
