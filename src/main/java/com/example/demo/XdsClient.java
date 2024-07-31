@@ -90,18 +90,10 @@ public class XdsClient {
 
     public void sendDiscoveryRequest(String typeUrl) throws InterruptedException {
         DiscoveryRequest request = buildDiscoveryRequest(typeUrl, Collections.emptySet());
-        System.out.println("typeUrl = " + typeUrl);
-
 
         StreamObserver<DiscoveryResponse> responseObserver = new StreamObserver<DiscoveryResponse>() {
             @Override
             public void onNext(DiscoveryResponse response) {
-                try {
-                    System.out.println("test");
-                    Thread.sleep(10000); // 서버 응답을 기다리는 시간 (필요에 따라 조정)
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
                 System.out.println("Received response: " + response); // 응답을 수신했을 때 출력
                 handleDiscoveryResponse(response); // 응답 처리
             }
@@ -119,14 +111,6 @@ public class XdsClient {
         };
         StreamObserver<DiscoveryRequest> requestStreamObserver = stub.streamAggregatedResources(responseObserver);
         requestStreamObserver.onNext(request);
-        System.out.println("flag");
-        Thread.sleep(60000);
-
-        stub.streamAggregatedResources(responseObserver).onNext(request);
-        System.out.println("flag2");
-        // 매번 인자에 무명객체를 넣어야하는가?
-        // 그게 오히려 메모리상으로는 이득? 새로 만드는 오버헤드는?
-        // 그냥 남기는게 낫지 않을까?
     }
 
 
@@ -142,6 +126,10 @@ public class XdsClient {
 
             System.out.println("resource.getTypeUrl() = " + resource.getTypeUrl());
             System.out.println("response = " + resource.toString());
+            Map<String, Set<String>> stringSetMap = new RdsDecoder().decodeDiscoveryResponse(response);
+            for ( String key : stringSetMap.keySet()) {
+                System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
+            }
         }
     }
     private void sendAck(DiscoveryResponse response) {
