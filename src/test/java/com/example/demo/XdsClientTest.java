@@ -128,11 +128,11 @@ public class XdsClientTest {
     @Test
     public void testSendDiscoveryRequest() throws Exception {
         // String typeUrl = "type.googleapis.com/envoy.service.discovery.v3.Listener"; // 요청할 typeUrl
-        String typeUrl = "type.googleapis.com/envoy.api.v3.Cluster";
+        String typeUrl = "type.googleapis.com/envoy.config.cluster.v3.Cluster";
         xdsClient.sendDiscoveryRequest(typeUrl);
 
         // 간단한 시간 대기 (서버 응답을 기다리기 위해)
-        Thread.sleep(2000); // 서버 응답을 기다리는 시간 (필요에 따라 조정)
+        // Thread.sleep(10000); // 서버 응답을 기다리는 시간 (필요에 따라 조정)
 
         // 실제 요청 및 응답을 확인하기 위해서 별도의 검증 로직을 추가할 수 있습니다.
         // 예를 들어, 수신한 DiscoveryResponse를 저장하고 검증하는 로직을 추가합니다.

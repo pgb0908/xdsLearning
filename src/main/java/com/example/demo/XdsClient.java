@@ -1,6 +1,8 @@
 package com.example.demo;
 import com.google.protobuf.Any;
 import io.envoyproxy.envoy.config.core.v3.Node;
+import io.envoyproxy.envoy.config.core.v3.BaseProto;
+import io.envoyproxy.envoy.config.core.v3.NodeOrBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.envoyproxy.envoy.service.discovery.v3.AggregatedDiscoveryServiceGrpc;
@@ -20,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class XdsClient {
     private final ManagedChannel channel;
     private final AggregatedDiscoveryServiceGrpc.AggregatedDiscoveryServiceStub stub;
+
 
 
     protected final static AtomicLong requestId = new AtomicLong(0);
@@ -71,10 +74,12 @@ public class XdsClient {
 
 
     public DiscoveryRequest buildDiscoveryRequest(String typeUrl, Set<String> resourceNames) {
+
+        Node node = Node.newBuilder().setId("test-id").setCluster("test-cluster").build();
         return DiscoveryRequest.newBuilder()
                 .setTypeUrl(typeUrl)
                 .addAllResourceNames(resourceNames)
-//                .setNode()        // node 선정을 못한다, 규봉님에게 물어볼 것.
+                .setNode(node)        // node 선정을 못한다, 규봉님에게 물어볼 것.
                 .build();
     }
 
@@ -83,12 +88,20 @@ public class XdsClient {
     // resourceNames로 buildDiscoveryRequest를 요청 -> 그 내용을 onNext에 넣는다.
     // 내 sendDiscoveryRequest와는 조금 다르다.
 
-    public void sendDiscoveryRequest(String typeUrl) {
+    public void sendDiscoveryRequest(String typeUrl) throws InterruptedException {
         DiscoveryRequest request = buildDiscoveryRequest(typeUrl, Collections.emptySet());
         System.out.println("typeUrl = " + typeUrl);
-        stub.streamAggregatedResources(new StreamObserver<DiscoveryResponse>() {
+
+
+        StreamObserver<DiscoveryResponse> responseObserver = new StreamObserver<DiscoveryResponse>() {
             @Override
             public void onNext(DiscoveryResponse response) {
+                try {
+                    System.out.println("test");
+                    Thread.sleep(10000); // 서버 응답을 기다리는 시간 (필요에 따라 조정)
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 System.out.println("Received response: " + response); // 응답을 수신했을 때 출력
                 handleDiscoveryResponse(response); // 응답 처리
             }
@@ -103,13 +116,20 @@ public class XdsClient {
             public void onCompleted() {
                 System.out.println("Stream completed");
             }
+        };
+        StreamObserver<DiscoveryRequest> requestStreamObserver = stub.streamAggregatedResources(responseObserver);
+        requestStreamObserver.onNext(request);
+        System.out.println("flag");
+        Thread.sleep(60000);
 
-
-        }).onNext(request);
+        stub.streamAggregatedResources(responseObserver).onNext(request);
+        System.out.println("flag2");
         // 매번 인자에 무명객체를 넣어야하는가?
         // 그게 오히려 메모리상으로는 이득? 새로 만드는 오버헤드는?
         // 그냥 남기는게 낫지 않을까?
     }
+
+
 
     // 응답
     private void handleDiscoveryResponse(DiscoveryResponse response) {
@@ -119,14 +139,9 @@ public class XdsClient {
     private void processResponseData(DiscoveryResponse response) {
         for (Any resource : response.getResourcesList()) {
             // Process each resource (e.g., parse and store in cache)
+
             System.out.println("resource.getTypeUrl() = " + resource.getTypeUrl());
             System.out.println("response = " + resource.toString());
-            // test
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
         }
     }
     private void sendAck(DiscoveryResponse response) {
@@ -151,6 +166,7 @@ public class XdsClient {
                 System.out.println("ACK stream completed");
             }
         }).onNext(ack);
+        System.out.println("SEND ACK");
     }
 
 }
