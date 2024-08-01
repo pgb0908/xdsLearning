@@ -1,8 +1,13 @@
 package com.example.demo;
 import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
+import io.envoyproxy.envoy.config.cluster.v3.Cluster;
+import io.envoyproxy.envoy.config.cluster.v3.ClusterProto;
 import io.envoyproxy.envoy.config.core.v3.Node;
 import io.envoyproxy.envoy.config.core.v3.BaseProto;
 import io.envoyproxy.envoy.config.core.v3.NodeOrBuilder;
+import io.envoyproxy.envoy.service.cluster.v3.CdsProto;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.envoyproxy.envoy.service.discovery.v3.AggregatedDiscoveryServiceGrpc;
@@ -79,7 +84,7 @@ public class XdsClient {
         return DiscoveryRequest.newBuilder()
                 .setTypeUrl(typeUrl)
                 .addAllResourceNames(resourceNames)
-                .setNode(node)        // node 선정을 못한다, 규봉님에게 물어볼 것.
+                .setNode(node)
                 .build();
     }
 
@@ -121,6 +126,7 @@ public class XdsClient {
         sendAck(response);
     }
     private void processResponseData(DiscoveryResponse response) {
+
         for (Any resource : response.getResourcesList()) {
             // Process each resource (e.g., parse and store in cache)
 
@@ -129,6 +135,12 @@ public class XdsClient {
             Map<String, Set<String>> stringSetMap = new RdsDecoder().decodeDiscoveryResponse(response);
             for ( String key : stringSetMap.keySet()) {
                 System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
+            }
+            try {
+
+                System.out.println("response = " + Cluster.parseFrom(resource.toByteArray()));
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
             }
         }
     }

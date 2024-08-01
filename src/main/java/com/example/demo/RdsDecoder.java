@@ -43,6 +43,7 @@ public class RdsDecoder {
     private static Map<String, Set<String>> decodeResourceToListener(RouteConfiguration resource) {
         Map<String, Set<String>> map = new HashMap<>();
 // 리소스에서 가상 호스트 목록을 가져옵니다.
+        System.out.println("RouteConfiguration :  " + resource);
         List<VirtualHost> virtualHosts = resource.getVirtualHostsList();
 
 // 각 가상 호스트를 처리합니다.

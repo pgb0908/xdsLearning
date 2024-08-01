@@ -129,7 +129,7 @@ public class XdsClientTest {
     @Test
     public void testSendDiscoveryRequest() throws Exception {
         // String typeUrl = "type.googleapis.com/envoy.config.listener.v3.Listener"; // 변경
-//        String typeUrl = "type.googleapis.com/envoy.api.v3.Cluster";
+        // String typeUrl = "type.googleapis.com/envoy.config.cluster.v3.Cluster";
         String typeUrl = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration";
         xdsClient.sendDiscoveryRequest(typeUrl);
 
