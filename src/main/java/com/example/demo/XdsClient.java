@@ -16,6 +16,7 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.grpc.stub.StreamObserver;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -99,7 +100,7 @@ public class XdsClient {
         StreamObserver<DiscoveryResponse> responseObserver = new StreamObserver<DiscoveryResponse>() {
             @Override
             public void onNext(DiscoveryResponse response) {
-                System.out.println("Received response: " + response); // 응답을 수신했을 때 출력
+//                System.out.println("Received response: " + response); // 응답을 수신했을 때 출력
                 handleDiscoveryResponse(response); // 응답 처리
             }
 
@@ -130,15 +131,19 @@ public class XdsClient {
         for (Any resource : response.getResourcesList()) {
             // Process each resource (e.g., parse and store in cache)
 
-            System.out.println("resource.getTypeUrl() = " + resource.getTypeUrl());
             System.out.println("response = " + resource.toString());
-            Map<String, Set<String>> stringSetMap = new RdsDecoder().decodeDiscoveryResponse(response);
+            Map<String, Set<String>> stringSetMap = new HashMap<>();
+            if (response.getTypeUrl().equals("type.googleapis.com/envoy.config.route.v3.RouteConfiguration")) {
+                stringSetMap = new RdsDecoder().decodeDiscoveryResponse(response);
+            } else if (response.getTypeUrl().equals("type.googleapis.com/envoy.config.cluster.v3.Cluster")) {
+                stringSetMap = new CdsDecoder().decodeDiscoveryResponse(response);
+            }
+
             for ( String key : stringSetMap.keySet()) {
                 System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
             }
             try {
-
-                System.out.println("response = " + Cluster.parseFrom(resource.toByteArray()));
+                System.out.println("paring = " + Cluster.parseFrom(resource.toByteString()));
             } catch (InvalidProtocolBufferException e) {
                 throw new RuntimeException(e);
             }
