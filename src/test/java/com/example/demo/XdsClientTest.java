@@ -118,9 +118,9 @@ public class XdsClientTest {
 
     @Test
     public void testBuildDiscoveryRequest() {
-        // String typeUrl = "type.googleapis.com/envoy.config.listener.v3.Listener"; // 변경
-        String typeUrl = "type.googleapis.com/envoy.api.v3.Cluster";
-//        String typeUrl = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration";
+        // String typeUrl = XdsTypeUrl.LDS.getTypeUrl(); // 변경
+        String typeUrl = XdsTypeUrl.EDS.getTypeUrl();
+//        String typeUrl = XdsTypeUrl.RDS.getTypeUrl();
         DiscoveryRequest request = xdsClient.buildDiscoveryRequest(typeUrl, Collections.emptySet());
 
         assertEquals(typeUrl, request.getTypeUrl(), "The type URL should match the input value.");
@@ -128,9 +128,10 @@ public class XdsClientTest {
 
     @Test
     public void testSendDiscoveryRequest() throws Exception {
-        // String typeUrl = "type.googleapis.com/envoy.config.listener.v3.Listener"; // 변경
-         String typeUrl = "type.googleapis.com/envoy.config.cluster.v3.Cluster";
-//        String typeUrl = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration";
+//         String typeUrl = XdsTypeUrl.LDS.getTypeUrl();            // LDS
+//         String typeUrl = XdsTypeUrl.CDS.getTypeUrl();              // CDS
+//        String typeUrl = XdsTypeUrl.RDS.getTypeUrl();      // RDS
+        String typeUrl = XdsTypeUrl.EDS.getTypeUrl();  // EDS
         xdsClient.sendDiscoveryRequest(typeUrl);
 
         // 간단한 시간 대기 (서버 응답을 기다리기 위해)

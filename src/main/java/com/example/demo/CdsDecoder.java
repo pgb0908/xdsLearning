@@ -9,7 +9,7 @@ import java.util.*;
 
 public class CdsDecoder {
     public String getTypeUrl() {
-        return "type.googleapis.com/envoy.config.cluster.v3.Cluster";
+        return XdsTypeUrl.CDS.getTypeUrl();
     }
 
     protected Map<String, Set<String>> decodeDiscoveryResponse (DiscoveryResponse response) {

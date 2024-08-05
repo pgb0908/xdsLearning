@@ -12,7 +12,7 @@ import java.util.*;
 
 public class RdsDecoder {
     public String getTypeUrl() {
-        return "type.googleapis.com/envoy.config.route.v3.RouteConfiguration";
+        return XdsTypeUrl.RDS.getTypeUrl();
     }
 
     protected Map<String, Set<String>> decodeDiscoveryResponse (DiscoveryResponse response) {

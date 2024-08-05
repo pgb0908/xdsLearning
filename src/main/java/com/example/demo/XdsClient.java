@@ -133,20 +133,26 @@ public class XdsClient {
 
             System.out.println("response = " + resource.toString());
             Map<String, Set<String>> stringSetMap = new HashMap<>();
-            if (response.getTypeUrl().equals("type.googleapis.com/envoy.config.route.v3.RouteConfiguration")) {
+            if (response.getTypeUrl().equals(XdsTypeUrl.RDS.getTypeUrl())) {
                 stringSetMap = new RdsDecoder().decodeDiscoveryResponse(response);
-            } else if (response.getTypeUrl().equals("type.googleapis.com/envoy.config.cluster.v3.Cluster")) {
+            } else if (response.getTypeUrl().equals(XdsTypeUrl.CDS.getTypeUrl())) {
                 stringSetMap = new CdsDecoder().decodeDiscoveryResponse(response);
+            } else if (response.getTypeUrl().equals(XdsTypeUrl.LDS.getTypeUrl())) {
+                stringSetMap = new LdsDecoder().decodeDiscoveryResponse(response);
+            } else if (response.getTypeUrl().equals("type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment")) {
+                stringSetMap = new EdsDecoder().decodeDiscoveryResponse(response);
             }
 
             for ( String key : stringSetMap.keySet()) {
                 System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
             }
-            try {
-                System.out.println("paring = " + Cluster.parseFrom(resource.toByteString()));
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+
+//            try {
+//                System.out.println("paring = " + Cluster.parseFrom(resource.toByteString()));
+//            } catch (InvalidProtocolBufferException e) {
+//                throw new RuntimeException(e);
+//            }
+            // parseFrom은 전혀 안되는 걸로 보임.
         }
     }
     private void sendAck(DiscoveryResponse response) {
