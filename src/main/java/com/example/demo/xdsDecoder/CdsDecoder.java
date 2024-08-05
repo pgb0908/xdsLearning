@@ -1,5 +1,6 @@
-package com.example.demo;
+package com.example.demo.xdsDecoder;
 
+import com.example.demo.XdsTypeUrl;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.envoyproxy.envoy.config.cluster.v3.Cluster;
@@ -7,12 +8,14 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 
 import java.util.*;
 
-public class CdsDecoder {
+public class CdsDecoder implements XdsDecoder {
+    @Override
     public String getTypeUrl() {
         return XdsTypeUrl.CDS.getTypeUrl();
     }
 
-    protected Map<String, Set<String>> decodeDiscoveryResponse (DiscoveryResponse response) {
+    @Override
+    public Map<String, Set<String>> decodeDiscoveryResponse (DiscoveryResponse response) {
         Map<String, Set<String>> map = new HashMap<>();
         List<Any> resourcesList = response.getResourcesList();
         System.out.println("Cluster In ");
@@ -67,7 +70,7 @@ public class CdsDecoder {
     }
 */
 
-    private static Cluster unpackClusterConfiguration(Any any) {
+    private Cluster unpackClusterConfiguration(Any any) {
         try {
             return any.unpack(Cluster.class);
         } catch (InvalidProtocolBufferException e) {

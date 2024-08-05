@@ -1,13 +1,10 @@
 package com.example.demo;
+import com.example.demo.xdsDecoder.CdsDecoder;
+import com.example.demo.xdsDecoder.EdsDecoder;
+import com.example.demo.xdsDecoder.LdsDecoder;
+import com.example.demo.xdsDecoder.RdsDecoder;
 import com.google.protobuf.Any;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Message;
-import io.envoyproxy.envoy.config.cluster.v3.Cluster;
-import io.envoyproxy.envoy.config.cluster.v3.ClusterProto;
 import io.envoyproxy.envoy.config.core.v3.Node;
-import io.envoyproxy.envoy.config.core.v3.BaseProto;
-import io.envoyproxy.envoy.config.core.v3.NodeOrBuilder;
-import io.envoyproxy.envoy.service.cluster.v3.CdsProto;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.envoyproxy.envoy.service.discovery.v3.AggregatedDiscoveryServiceGrpc;
@@ -132,6 +129,7 @@ public class XdsClient {
             // Process each resource (e.g., parse and store in cache)
 
             System.out.println("response = " + resource.toString());
+
             Map<String, Set<String>> stringSetMap = new HashMap<>();
             if (response.getTypeUrl().equals(XdsTypeUrl.RDS.getTypeUrl())) {
                 stringSetMap = new RdsDecoder().decodeDiscoveryResponse(response);
@@ -139,20 +137,13 @@ public class XdsClient {
                 stringSetMap = new CdsDecoder().decodeDiscoveryResponse(response);
             } else if (response.getTypeUrl().equals(XdsTypeUrl.LDS.getTypeUrl())) {
                 stringSetMap = new LdsDecoder().decodeDiscoveryResponse(response);
-            } else if (response.getTypeUrl().equals("type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment")) {
+            } else if (response.getTypeUrl().equals(XdsTypeUrl.EDS.getTypeUrl())) {
                 stringSetMap = new EdsDecoder().decodeDiscoveryResponse(response);
             }
 
             for ( String key : stringSetMap.keySet()) {
                 System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
             }
-
-//            try {
-//                System.out.println("paring = " + Cluster.parseFrom(resource.toByteString()));
-//            } catch (InvalidProtocolBufferException e) {
-//                throw new RuntimeException(e);
-//            }
-            // parseFrom은 전혀 안되는 걸로 보임.
         }
     }
     private void sendAck(DiscoveryResponse response) {
@@ -179,5 +170,6 @@ public class XdsClient {
         }).onNext(ack);
         System.out.println("SEND ACK");
     }
-
 }
+
+// https://tmaxsoft.atlassian.net/wiki/spaces/APIM/pages/641728973/~

@@ -1,5 +1,6 @@
-package com.example.demo;
+package com.example.demo.xdsDecoder;
 
+import com.example.demo.XdsTypeUrl;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.envoyproxy.envoy.config.route.v3.Route;
@@ -10,12 +11,13 @@ import io.envoyproxy.envoy.service.discovery.v3.Resource;
 
 import java.util.*;
 
-public class RdsDecoder {
+public class RdsDecoder implements XdsDecoder {
+    @Override
     public String getTypeUrl() {
         return XdsTypeUrl.RDS.getTypeUrl();
     }
-
-    protected Map<String, Set<String>> decodeDiscoveryResponse (DiscoveryResponse response) {
+    @Override
+    public Map<String, Set<String>> decodeDiscoveryResponse (DiscoveryResponse response) {
         Map<String, Set<String>> map = new HashMap<>();
         List<Any> resourcesList = response.getResourcesList();
 
@@ -40,7 +42,7 @@ public class RdsDecoder {
             return map;
     }
 
-    private static Map<String, Set<String>> decodeResourceToListener(RouteConfiguration resource) {
+    public Map<String, Set<String>> decodeResourceToListener(RouteConfiguration resource) {
         Map<String, Set<String>> map = new HashMap<>();
 // 리소스에서 가상 호스트 목록을 가져옵니다.
         System.out.println("RouteConfiguration :  " + resource);
@@ -70,7 +72,7 @@ public class RdsDecoder {
     }
 
 
-    private static RouteConfiguration unpackRouteConfiguration(Any any) {
+    private RouteConfiguration unpackRouteConfiguration(Any any) {
         try {
             return any.unpack(RouteConfiguration.class);
         } catch (InvalidProtocolBufferException e) {
