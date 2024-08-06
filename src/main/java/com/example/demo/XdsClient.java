@@ -1,8 +1,5 @@
 package com.example.demo;
-import com.example.demo.xdsDecoder.CdsDecoder;
-import com.example.demo.xdsDecoder.EdsDecoder;
-import com.example.demo.xdsDecoder.LdsDecoder;
-import com.example.demo.xdsDecoder.RdsDecoder;
+import com.example.demo.xdsDecoder.*;
 import com.google.protobuf.Any;
 import io.envoyproxy.envoy.config.core.v3.Node;
 import io.grpc.ManagedChannel;
@@ -77,7 +74,6 @@ public class XdsClient {
 
 
     public DiscoveryRequest buildDiscoveryRequest(String typeUrl, Set<String> resourceNames) {
-
         Node node = Node.newBuilder().setId("test-id").setCluster("test-cluster").build();
         return DiscoveryRequest.newBuilder()
                 .setTypeUrl(typeUrl)
@@ -86,18 +82,12 @@ public class XdsClient {
                 .build();
     }
 
-    // 요청
-    // getResource, resourceNames를 받아서 Set으로 정리.
-    // resourceNames로 buildDiscoveryRequest를 요청 -> 그 내용을 onNext에 넣는다.
-    // 내 sendDiscoveryRequest와는 조금 다르다.
-
-    public void sendDiscoveryRequest(String typeUrl) throws InterruptedException {
+    public void sendDiscoveryRequest(String typeUrl) {
         DiscoveryRequest request = buildDiscoveryRequest(typeUrl, Collections.emptySet());
 
         StreamObserver<DiscoveryResponse> responseObserver = new StreamObserver<DiscoveryResponse>() {
             @Override
             public void onNext(DiscoveryResponse response) {
-//                System.out.println("Received response: " + response); // 응답을 수신했을 때 출력
                 handleDiscoveryResponse(response); // 응답 처리
             }
 
@@ -130,22 +120,37 @@ public class XdsClient {
 
             System.out.println("response = " + resource.toString());
 
-            Map<String, Set<String>> stringSetMap = new HashMap<>();
-            if (response.getTypeUrl().equals(XdsTypeUrl.RDS.getTypeUrl())) {
-                stringSetMap = new RdsDecoder().decodeDiscoveryResponse(response);
-            } else if (response.getTypeUrl().equals(XdsTypeUrl.CDS.getTypeUrl())) {
-                stringSetMap = new CdsDecoder().decodeDiscoveryResponse(response);
-            } else if (response.getTypeUrl().equals(XdsTypeUrl.LDS.getTypeUrl())) {
-                stringSetMap = new LdsDecoder().decodeDiscoveryResponse(response);
-            } else if (response.getTypeUrl().equals(XdsTypeUrl.EDS.getTypeUrl())) {
-                stringSetMap = new EdsDecoder().decodeDiscoveryResponse(response);
+            XdsDecoder xdsDecoder = getXdsDecoder(response);
+
+            if (xdsDecoder == null) {
+                System.out.println("Undefined Type Url.");
+                return;
             }
+
+            Map<String, Set<String>> stringSetMap = xdsDecoder.decodeDiscoveryResponse(response);
 
             for ( String key : stringSetMap.keySet()) {
                 System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
             }
         }
     }
+
+    private XdsDecoder getXdsDecoder(DiscoveryResponse response) {
+        XdsDecoder xdsDecoder = null;
+
+        if (response.getTypeUrl().equals(XdsTypeUrl.RDS.getTypeUrl())) {
+            xdsDecoder = new RdsDecoder();
+        } else if (response.getTypeUrl().equals(XdsTypeUrl.CDS.getTypeUrl())) {
+            xdsDecoder = new CdsDecoder();
+        } else if (response.getTypeUrl().equals(XdsTypeUrl.LDS.getTypeUrl())) {
+            xdsDecoder = new LdsDecoder();
+        } else if (response.getTypeUrl().equals(XdsTypeUrl.EDS.getTypeUrl())) {
+            xdsDecoder = new EdsDecoder();
+        }
+
+        return xdsDecoder;
+    }
+
     private void sendAck(DiscoveryResponse response) {
         DiscoveryRequest ack = DiscoveryRequest.newBuilder()
                 .setVersionInfo(response.getVersionInfo())
@@ -155,7 +160,7 @@ public class XdsClient {
         stub.streamAggregatedResources(new StreamObserver<DiscoveryResponse>() {
             @Override
             public void onNext(DiscoveryResponse response) {
-                handleDiscoveryResponse(response);
+                handleDiscoveryResponse(response);          // 이상한 부분.
             }
 
             @Override
@@ -169,6 +174,8 @@ public class XdsClient {
             }
         }).onNext(ack);
         System.out.println("SEND ACK");
+
+
     }
 }
 
