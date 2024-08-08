@@ -18,7 +18,6 @@ public class CdsDecoder implements XdsDecoder {
     public Map<String, Set<String>> decodeDiscoveryResponse (DiscoveryResponse response) {
         Map<String, Set<String>> map = new HashMap<>();
         List<Any> resourcesList = response.getResourcesList();
-        System.out.println("Cluster In ");
         if (getTypeUrl().equals(response.getTypeUrl())) {
             for (Any resource : resourcesList) {
                 // 각 리소스를 RouteConfiguration으로 변환합니다.

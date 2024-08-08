@@ -37,18 +37,8 @@ public class XdsClient {
      * K - requestId, V - StreamObserver
      */
     private final Map<Long, StreamObserver<DiscoveryRequest>> requestObserverMap = new ConcurrentHashMap<>();
-
-    /**
-     * Store Delta-ADS Request Observer ( StreamObserver in Streaming Request )
-     * K - requestId, V - StreamObserver
-     */
-    private final Map<Long, ScheduledFuture<?>> observeScheduledMap = new ConcurrentHashMap<>();
-
-    /**
-     * Store CompletableFuture for Request ( used to fetch async result in ResponseObserver )
-     * K - requestId, V - CompletableFuture
-     */
-    private final Map<Long, CompletableFuture<?>> streamResult = new ConcurrentHashMap<>();
+    private final Map<Long, StreamObserver<DiscoveryResponse>> responseObserverMap = new ConcurrentHashMap<>();
+    private DiscoveryResponse responsed;
 
 
     public XdsClient(String host, int port) {
@@ -81,14 +71,39 @@ public class XdsClient {
                 .setNode(node)
                 .build();
     }
+    public class _State {
+        StreamObserver<DiscoveryRequest> streamObserverRequest;
+        StreamObserver<DiscoveryResponse> streamObserverResponse;
+        DiscoveryRequest request;
+        DiscoveryResponse response;
 
-    public void sendDiscoveryRequest(String typeUrl) {
+        public _State () {
+
+        }
+
+        public _State(StreamObserver<DiscoveryRequest> streamObserverRequest,StreamObserver<DiscoveryResponse> streamObserverResponse, DiscoveryRequest request) {
+            this.streamObserverRequest = streamObserverRequest;
+            this.streamObserverResponse = streamObserverResponse;
+            this.request = request;
+        }
+
+        public void setResponse(DiscoveryResponse response) {
+            this.response = response;
+        }
+    }
+
+    public _State sendDiscoveryRequest(String typeUrl) {
         DiscoveryRequest request = buildDiscoveryRequest(typeUrl, Collections.emptySet());
 
         StreamObserver<DiscoveryResponse> responseObserver = new StreamObserver<DiscoveryResponse>() {
             @Override
             public void onNext(DiscoveryResponse response) {
-                handleDiscoveryResponse(response); // 응답 처리
+                if (responsed == null || ! (responsed.getVersionInfo().equals(response.getVersionInfo()))) {
+                    handleDiscoveryResponse(response); // 응답 처리
+                    responsed = response;
+                }
+                responsed = response;
+                sendAck(response);
             }
 
             @Override
@@ -102,8 +117,13 @@ public class XdsClient {
                 System.out.println("Stream completed");
             }
         };
+
         StreamObserver<DiscoveryRequest> requestStreamObserver = stub.streamAggregatedResources(responseObserver);
         requestStreamObserver.onNext(request);
+        requestObserverMap.put(1L,requestStreamObserver);
+        responseObserverMap.put(1L,responseObserver);
+
+        return new _State(requestStreamObserver, responseObserver,request);
     }
 
 
@@ -111,14 +131,14 @@ public class XdsClient {
     // 응답
     private void handleDiscoveryResponse(DiscoveryResponse response) {
         processResponseData(response);
-        sendAck(response);
     }
     private void processResponseData(DiscoveryResponse response) {
 
         for (Any resource : response.getResourcesList()) {
             // Process each resource (e.g., parse and store in cache)
 
-            System.out.println("response = " + resource.toString());
+//            System.out.println("response = " + resource.toString());
+
 
             XdsDecoder xdsDecoder = getXdsDecoder(response);
 
@@ -128,10 +148,10 @@ public class XdsClient {
             }
 
             Map<String, Set<String>> stringSetMap = xdsDecoder.decodeDiscoveryResponse(response);
-
-            for ( String key : stringSetMap.keySet()) {
-                System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
-            }
+//
+//            for ( String key : stringSetMap.keySet()) {
+//                System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
+//            }
         }
     }
 
@@ -151,16 +171,21 @@ public class XdsClient {
         return xdsDecoder;
     }
 
-    private void sendAck(DiscoveryResponse response) {
+    public void sendAck(DiscoveryResponse response) {
         DiscoveryRequest ack = DiscoveryRequest.newBuilder()
                 .setVersionInfo(response.getVersionInfo())
                 .setResponseNonce(response.getNonce())
                 .setTypeUrl(response.getTypeUrl())
                 .build();
+        // StreamObserver<DiscoveryResponse> responseStreamObserver = responseObserverMap.get(1L);
+        // responseStreamObserver.onNext(response);
+        System.out.println("SEND ACK, ack : " + ack);
+/*
         stub.streamAggregatedResources(new StreamObserver<DiscoveryResponse>() {
             @Override
             public void onNext(DiscoveryResponse response) {
-                handleDiscoveryResponse(response);          // 이상한 부분.
+//                handleDiscoveryResponse(response,false);          // 이상한 부분.
+                System.out.println("SEND ACK ON NEXT DONE");
             }
 
             @Override
@@ -173,7 +198,9 @@ public class XdsClient {
                 System.out.println("ACK stream completed");
             }
         }).onNext(ack);
-        System.out.println("SEND ACK");
+
+ */
+        requestObserverMap.get(1L).onNext(ack);
 
 
     }
