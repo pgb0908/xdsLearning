@@ -1,6 +1,5 @@
 package com.example.demo;
 import com.example.demo.xdsDecoder.*;
-import com.google.protobuf.Any;
 import io.envoyproxy.envoy.config.core.v3.Node;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -10,12 +9,9 @@ import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse;
 import io.grpc.stub.StreamObserver;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -134,25 +130,14 @@ public class XdsClient {
     }
     private void processResponseData(DiscoveryResponse response) {
 
-        for (Any resource : response.getResourcesList()) {
-            // Process each resource (e.g., parse and store in cache)
+        XdsDecoder xdsDecoder = getXdsDecoder(response);
 
-//            System.out.println("response = " + resource.toString());
-
-
-            XdsDecoder xdsDecoder = getXdsDecoder(response);
-
-            if (xdsDecoder == null) {
-                System.out.println("Undefined Type Url.");
-                return;
-            }
-
-            Map<String, Set<String>> stringSetMap = xdsDecoder.decodeDiscoveryResponse(response);
-//
-//            for ( String key : stringSetMap.keySet()) {
-//                System.out.println("Response Data, Key : " + key  + " , value : " + stringSetMap.get(key));
-//            }
+        if (xdsDecoder == null) {
+            System.out.println("Undefined Type Url.");
+            return;
         }
+
+        Map<String, Set<String>> stringSetMap = xdsDecoder.decodeDiscoveryResponse(response);
     }
 
     private XdsDecoder getXdsDecoder(DiscoveryResponse response) {
@@ -177,29 +162,7 @@ public class XdsClient {
                 .setResponseNonce(response.getNonce())
                 .setTypeUrl(response.getTypeUrl())
                 .build();
-        // StreamObserver<DiscoveryResponse> responseStreamObserver = responseObserverMap.get(1L);
-        // responseStreamObserver.onNext(response);
         System.out.println("SEND ACK, ack : " + ack);
-/*
-        stub.streamAggregatedResources(new StreamObserver<DiscoveryResponse>() {
-            @Override
-            public void onNext(DiscoveryResponse response) {
-//                handleDiscoveryResponse(response,false);          // 이상한 부분.
-                System.out.println("SEND ACK ON NEXT DONE");
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                System.err.println("Error sending ACK: " + t.getMessage());
-            }
-
-            @Override
-            public void onCompleted() {
-                System.out.println("ACK stream completed");
-            }
-        }).onNext(ack);
-
- */
         requestObserverMap.get(1L).onNext(ack);
 
 
