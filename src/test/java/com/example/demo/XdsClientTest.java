@@ -9,6 +9,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -49,6 +52,10 @@ public class XdsClientTest {
 //         String typeUrl = XdsTypeUrl.LDS.getTypeUrl();            // LDS
 //         String typeUrl = XdsTypeUrl.CDS.getTypeUrl();              // CDS
 //        String typeUrl = XdsTypeUrl.RDS.getTypeUrl();      // RDS
+
+        // start
+
+
         String typeUrl = XdsTypeUrl.EDS.getTypeUrl();  // EDS
 
         XdsClient._State state = xdsClient.sendDiscoveryRequest(XdsTypeUrl.CDS.getTypeUrl());
@@ -59,6 +66,32 @@ public class XdsClientTest {
             Thread.sleep(5000);
             System.out.println("Test");
              state.streamObserverRequest.onNext(state.request);
+        }
+        // connection이 일부가 깨지거나
+        // server에 connection이 모두 깨질 때
+        // 그에 대한 처리 방안이 필요하다.
+
+        // end
+    }
+
+    @Test
+    public void testSeperatedDS() throws Exception {
+        channel = ManagedChannelBuilder.forAddress("localhost", 9002) // 실제 서버 주소와 포트
+                .usePlaintext()
+                .build();
+
+        XdsReader.runXds(xdsClient,XdsTypeUrl.LDS);
+        XdsClient xdsClient1 = new XdsClient(channel);
+
+        XdsReader.runXds(xdsClient1,XdsTypeUrl.RDS);
+        XdsClient xdsClient2 = new XdsClient(channel);
+        XdsReader.runXds(xdsClient2,XdsTypeUrl.CDS);
+        XdsClient xdsClient3 = new XdsClient(channel);
+        XdsReader.runXds(xdsClient3,XdsTypeUrl.EDS);
+// xdsClient당 한개의 요청이네
+
+        while(true) {
+
         }
     }
 }

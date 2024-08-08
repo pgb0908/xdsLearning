@@ -23,15 +23,11 @@ public class RdsDecoder implements XdsDecoder {
 
         if (getTypeUrl().equals(response.getTypeUrl())) {
             for (Any resource : resourcesList) {
-                // 각 리소스를 RouteConfiguration으로 변환합니다.
                 RouteConfiguration routeConfiguration = unpackRouteConfiguration(resource);
 
                 // 변환에 실패한 경우 무시합니다.
                 if (routeConfiguration != null) {
-                    // RouteConfiguration을 Map<String, Set<String>>으로 변환합니다.
                     Map<String, Set<String>> decodedMap = decodeResourceToListener(routeConfiguration);
-
-                    // 변환된 맵을 결과 맵에 합칩니다.
                     map.putAll(decodedMap); // decodedMap의 모든 엔트리를 결과 맵에 추가합니다.
                 }
             }
