@@ -13,7 +13,7 @@ public class Main {
 
         xdsClient.shutdown();
 
-        sleep(30000);
+        sleep(50000);
 
     }
 

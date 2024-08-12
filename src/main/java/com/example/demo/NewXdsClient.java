@@ -23,7 +23,7 @@ public class NewXdsClient {
     private boolean check;
 
     private Queue<String> requestQueue;
-
+    private Map<String, State> states;
 
     /**
      * 생성자1
@@ -57,9 +57,6 @@ public class NewXdsClient {
         public void onNext(DiscoveryResponse response) {
             System.out.println("response data : \n" + response);
             processResponse(response);
-
-
-            detectRequestQueue();
         }
 
         @Override
@@ -76,7 +73,7 @@ public class NewXdsClient {
     };
 
 
-    public void requestChat(DiscoveryRequest request) throws InterruptedException {
+    public CountDownLatch requestChat(DiscoveryRequest request) throws InterruptedException {
         System.out.println("before request data : \n" + request);
 
         final CountDownLatch finishLatch = new CountDownLatch(1);
@@ -109,11 +106,7 @@ public class NewXdsClient {
             e.printStackTrace();
         }
 
-        if(finishLatch.await(5, TimeUnit.SECONDS)){
-            System.out.println("Stream[responseObserver] completed");
-
-            requestQueue.addAll(states.keySet());
-        }
+        return finishLatch;
 
     }
 
@@ -126,12 +119,10 @@ public class NewXdsClient {
             return;
         }
 
-
         State api_state = states.get(type_url);
 
         try {
             /// resource 업데이트
-
             api_state.request = api_state.request.toBuilder().setVersionInfo(response.getVersionInfo()).build();
 
         } catch (RuntimeException e) {
@@ -148,35 +139,12 @@ public class NewXdsClient {
     }
 
 
-
-
-
     /////////////////////////////////////////////////////////////////
 
 
 /*    public AggregatedDiscoveryServiceGrpc.AggregatedDiscoveryServiceStub getStub() {
         return stub;
     }*/
-
-
-    public class State {
-        private DiscoveryRequest request;
-        private boolean subscribed;
-        private List<String> watched_resources;
-
-
-        public State() {
-            this.request =  DiscoveryRequest.newBuilder().build();
-            this.subscribed = false;
-            this.watched_resources = new ArrayList<>();
-        }
-
-        public void subscribed(){
-            this.subscribed = true;
-        }
-    }
-
-    private Map<String, State> states;
 
 
     public void shutdown() throws InterruptedException {
@@ -203,7 +171,7 @@ public class NewXdsClient {
     }
 
     public void detectRequestQueue(){
-
+        System.out.println("detectRequestQueue....");
         // request-queue 감지
         if (!requestQueue.isEmpty()) {
             while (!requestQueue.isEmpty()) {
@@ -212,6 +180,7 @@ public class NewXdsClient {
             }
 
         }
+
     }
 
     private void sendDiscoveryRequest(String type_url){
@@ -245,11 +214,17 @@ public class NewXdsClient {
         }
 
         try {
-            requestChat(state.request);
-        }catch (RuntimeException e){
+            CountDownLatch finishLatch = requestChat(state.request);
+
+            if(finishLatch.await(5, TimeUnit.SECONDS)){
+                System.out.println("Stream[responseObserver] can not finish 1 time-unit");
+            }
+        }catch (RuntimeException | InterruptedException e){
             e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        }finally {
+            requestQueue.addAll(states.keySet());
+
+            detectRequestQueue();
         }
 
     }
