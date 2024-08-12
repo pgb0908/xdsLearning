@@ -11,6 +11,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -19,6 +20,11 @@ public class NewXdsClient {
     private final ManagedChannel channel;
     private final AggregatedDiscoveryServiceGrpc.AggregatedDiscoveryServiceStub asyncStub;
 
+    private boolean check;
+
+    private Queue<String> requestQueue;
+
+
     /**
      * 생성자1
      * @param host
@@ -26,13 +32,15 @@ public class NewXdsClient {
      */
     public NewXdsClient(String host, int port) {
         String target = host + ":" + port;
-        channel = Grpc.newChannelBuilder(target, InsecureChannelCredentials.create()).build();
-/*        this.channel = ManagedChannelBuilder.forAddress(host, port)
+        //channel = Grpc.newChannelBuilder(target, InsecureChannelCredentials.create()).build();
+        this.channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
-                .build();*/
+                .build();
         this.asyncStub = AggregatedDiscoveryServiceGrpc.newStub(channel);
         this.states = new HashMap<>();
         this.requestQueue = new ArrayDeque<>();
+
+        check = false;
     }
 
 
@@ -41,91 +49,105 @@ public class NewXdsClient {
 
     // 통신
 
-    public void requestChat(DiscoveryRequest request) {
+    StreamObserver<DiscoveryRequest> requestStreamObserver;
+
+    StreamObserver<DiscoveryResponse> responseObserver = new StreamObserver<DiscoveryResponse>() {
+
+        @Override
+        public void onNext(DiscoveryResponse response) {
+            System.out.println("response data : \n" + response);
+            processResponse(response);
+
+
+            detectRequestQueue();
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            System.err.println("Error[responseObserver]" + t.getMessage());
+            t.printStackTrace(); // 스택 트레이스를 출력하여 상세한 오류를 확인
+        }
+
+        @Override
+        public void onCompleted() {
+            System.out.println("Stream[responseObserver] completed");
+        }
+
+    };
+
+
+    public void requestChat(DiscoveryRequest request) throws InterruptedException {
         System.out.println("before request data : \n" + request);
 
-        AtomicReference<StreamObserver<DiscoveryRequest>> requestObserverRef = new AtomicReference<>();
-
-        StreamObserver<DiscoveryResponse> responseObserver = new StreamObserver<DiscoveryResponse>() {
+        final CountDownLatch finishLatch = new CountDownLatch(1);
+        StreamObserver<DiscoveryRequest> requestObserver = asyncStub.streamAggregatedResources(new StreamObserver<DiscoveryResponse>() {
             @Override
-            public void onNext(DiscoveryResponse response) {
+            public void onNext(DiscoveryResponse value) {
+                System.out.println("response data : \n" + value);
+                processResponse(value);
 
+                detectRequestQueue();
             }
 
             @Override
             public void onError(Throwable t) {
-                System.err.println("Error receiving response: " + t.getMessage());
+                System.err.println("Error[responseObserver]" + t.getMessage());
                 t.printStackTrace(); // 스택 트레이스를 출력하여 상세한 오류를 확인
+                finishLatch.countDown();
             }
 
             @Override
             public void onCompleted() {
-                System.out.println("Stream completed");
+                System.out.println("Stream[responseObserver] completed");
+                finishLatch.countDown();
             }
-        };
-
-
-        StreamObserver<DiscoveryRequest> requestObserver
-                = asyncStub.streamAggregatedResources(new StreamObserver<DiscoveryResponse>() {
-            @Override
-            public void onNext(DiscoveryResponse data) {
-                System.out.println("response data : \n" + data);
-
-                DiscoveryRequest request2 = DiscoveryRequest.newBuilder().build();
-                requestObserverRef.get().onNext(request2);
-
-                responseObserver.onNext(data);
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                System.err.println("Error receiving response: " + t.getMessage());
-                t.printStackTrace(); // 스택 트레이스를 출력하여 상세한 오류를 확인
-            }
-
-            @Override
-            public void onCompleted() {
-                System.out.println("Stream-response completed");
-            }
-
         });
 
         try{
-            requestObserverRef.set(requestObserver);
             requestObserver.onNext(request);
         }catch (RuntimeException e){
-            requestObserver.onError(e);
-            throw e;
+            e.printStackTrace();
+        }
+
+        if(finishLatch.await(5, TimeUnit.SECONDS)){
+            System.out.println("Stream[responseObserver] completed");
+
+            requestQueue.addAll(states.keySet());
         }
 
     }
 
 
-    public void responseChat(DiscoveryResponse response) {
+    public void processResponse(DiscoveryResponse response){
+        String type_url = response.getTypeUrl();
+
+        if (!states.containsKey(type_url)) {
+            System.err.println("[processResponse] can't find url");
+            return;
+        }
 
 
-        StreamObserver<DiscoveryResponse> responseObserver
-                = asyncStub.streamAggregatedResources(new StreamObserver<DiscoveryRequest>() {
+        State api_state = states.get(type_url);
 
-            @Override
-            public void onNext(DiscoveryRequest value) {
+        try {
+            /// resource 업데이트
 
-            }
+            api_state.request = api_state.request.toBuilder().setVersionInfo(response.getVersionInfo()).build();
 
-            @Override
-            public void onError(Throwable t) {
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+        }
 
-            }
-
-            @Override
-            public void onCompleted() {
-
-            }
-        });
+        String nonce = response.getNonce();
+        api_state.request = api_state.request.toBuilder().setResponseNonce(nonce).build();
 
 
-
+        // 응답에 대한 답변으로
+        // request-queue에 새로운 요청 생성
+        requestQueue.add(type_url);
     }
+
+
 
 
 
@@ -136,7 +158,6 @@ public class NewXdsClient {
         return stub;
     }*/
 
-    private Queue<String> requestQueue;
 
     public class State {
         private DiscoveryRequest request;
@@ -172,6 +193,15 @@ public class NewXdsClient {
         requestQueue.add(type_url);
     }
 
+    public void subscribeEds(){
+        String type_url = "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment";
+
+        State state = new State();
+        this.states.put(type_url, state);
+
+        requestQueue.add(type_url);
+    }
+
     public void detectRequestQueue(){
 
         // request-queue 감지
@@ -179,15 +209,9 @@ public class NewXdsClient {
             while (!requestQueue.isEmpty()) {
                 String url = requestQueue.poll();
                 sendDiscoveryRequest(url);
-
             }
 
-        } else {
-            // request-queue 아무것도 없다면 receive를 하기 위한 대기
-            //receiveResponse(adsTotalResource);
-
         }
-
     }
 
     private void sendDiscoveryRequest(String type_url){
@@ -223,6 +247,8 @@ public class NewXdsClient {
         try {
             requestChat(state.request);
         }catch (RuntimeException e){
+            e.printStackTrace();
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
